@@ -1,10 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from common import *
 
 
-# Default stuff
+# Default preferences
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif', size=11)
 plt.rc('legend', fontsize=11)
@@ -35,23 +34,17 @@ def __nextcolor():
 	return color
 
 
-# TODO doesn't handle cases when |interval| < pi well
-def piaxis(sub):
-	def namef(d):
-		if d == 0:    return '$0$'
-		elif d == 1:  return '$\\pi$'
-		elif d == -1: return '$-\\pi$'
-		else:         return '$%d\\pi$'%d
-	t = np.array(sub.get_xticks()) / np.pi
-	a,b = int(np.ceil(min(t))),int(np.floor(max(t)))
-	sub.set_xticks([i*np.pi for i in range(a,b+1)])
-	sub.set_xticklabels([namef(i) for i in range(a,b+1)])
-
 def texengform(val,n):
+	"""
+	texengform(val,n):
+	Format a number [val] to TeX style with [n] decimals,
+	e.g. texengform(1.43254e4,3) -> "$1.432\\times10^{4}$"
+	"""
 	v,e = (('%.'+str(n)+'e') % val).split('e')
 	e = int(e,10)
 	if e == 0: return '$%s$' % v
 	else:      return '$%s\\times10^{%d}$' % (v,e)
+
 
 def axform(sub,form,n):
 	if n == 0:   get,set = sub.get_xticks,sub.set_xticklabels
@@ -67,49 +60,9 @@ def axform(sub,form,n):
 	else:
 		set([form(i) for i in get()])
 
-# TODO: expand data set such that: [2,4] % 3  ->  [2,4,nan,-1,1]
-def mod_expand(x,axis):
-	print("Line plot modulation not implemented", file=sys.stderr)
-	return x
-		#print(x[0])
-	###mod = getprop('mod')
-	###if mod:
-	###	m = mod[1] - mod[0]
-	###	d = -mod[0]
-	###	x1 = x[0] - d
-	###	m1 = np.floor(x1/m)
-	###	d1 = np.diff(m1)
-	###	print(m,m1,d1)
-	###	#xp_shape = list(x.shape)
-	###	#xp_shape[0] += 3 * np.sum(np.abs(d1))
-	###	#xp = np.zeros(xp_shape)
-
-	###	xi,xpi = 0,0
-	###	x_map = np.zeros(len(x[0]) + 3 * np.sum(np.abs(d1)))
-	###	x_mod = np.zeros(len(x[0]) + 3 * np.sum(np.abs(d1)))
-	###	xm = 
-	###	for i in np.where(d1 != 0)[0]:
-	###		n = i - xi
-	###		x_map[xpi:xpi+n] = range(xi,xi+n)
-	###		x_map[xpi+n:xpi+n+3] = (-1,-2,-3)
-	###		xi  += n
-	###		xpi += n + 3*int(abs(d1[i]))
-	###		print("i=%2d, n=%2d" % (i,n), range(xi,xi+n))
-	###	x_map[xpi:] = range(xi,len(x[0]))
-
-	###	print(x,'\n',x_map)
-
-
-	###	#a = int(np.floor(np.max((x+d)/m)))
-	###	#b = int(np.floor(np.min((x+d)/m)))
-	###	#print(a,b)
-	###	#print([x for x in range(b,a+1)])
-	###	#for n in range(b,a+1):
-	###	#	lineplot(x - n*m,y,props,sub)
-
 
 # 2D/3D line plot
-def lplot(x,props={},insub=None):
+def smartplot(x,props={},insub=None):
 	# Process multiple dicts
 	if isinstance(props,(list,tuple)):
 		pmerge = {}
@@ -121,7 +74,7 @@ def lplot(x,props={},insub=None):
 	getprop = lambda v,d=None: props[v] if v in props else d
 
 	# Format x for most special cases
-	if not hasattr(x,'__len__'): x = [] # ... means generators not allowed
+	if not hasattr(x,'__len__'): x = []
 	if len(x) == 1: x = (range(len(x[0])),x[0])
 	if len(x) > 3:  x = (range(len(x)),x)
 
@@ -147,15 +100,16 @@ def lplot(x,props={},insub=None):
 	if len(x) > 0:
 		mod = getprop('mod')
 		if mod:
-			if not getprop('linewidth'):
-				m = mod[1] - mod[0]
-				d = mod[0]
-				x = np.array(x)
-				x[0] = np.mod(x[0]-d,m) + d
-			else:
-				x = mod_expand(x,0)
+			# TODO
+			if getprop('linewidth'):
+				pass
+			m = mod[1] - mod[0]
+			d = mod[0]
+			x = np.array(x)
+			x[0] = np.mod(x[0]-d,m) + d
 
 	# Add margin
+	# TODO fix
 	#if getprop('margin'):
 	#	print('a',arange)
 	#	m = getprop('margin')
@@ -165,7 +119,7 @@ def lplot(x,props={},insub=None):
 	#	arange = np.array([axmin - axlen*m,axmax + axlen*m])
 	#	print('b',arange)
 
-	# Subplot to plot on
+	# Subplot
 	if insub:
 		sub = insub
 	else:
@@ -258,8 +212,6 @@ def lplot(x,props={},insub=None):
 		for n,form in enumerate(getprop('axform')):
 			if form:
 				axform(sub,form,n)
-	if getprop('piaxis'): # TODO add to axform
-		piaxis(sub)
 
 	if getprop('smallticks'):
 		ticklabels = (sub.get_xticklabels() + sub.get_yticklabels())
@@ -286,35 +238,4 @@ def lplot(x,props={},insub=None):
 		plt.show()
 
 	return phandle
-
-
-
-# Modulo plot
-def modplot(x,props,sub=None,m=2*np.pi,d=0):
-	props = props.copy()
-	props['mod'] = (-d,m-d)
-	return lplot(xm,props,sub)
-
-
-# Scatter plot
-def scatplot(x,props={},sub=None):
-	props = props.copy()
-	props['linewidth'] = 0
-	if not props['markersize']: props['markersize'] = 1
-	return lplot(x,props,sub)
-
-# Bifurcation plot
-def bifurcation_plot(f,fparams,m,l,x0=0.2,props={}, sub=None):
-	n = m - l
-	x = np.zeros([len(fparams),n])
-	y = np.zeros([len(fparams),n])
-	for i,param in enumerate(fparams):
-		ty = iterated_map(f(param),x0,n,l)
-		y[i] = dimreduce(ty,1) #ty[l:,0] if isvector(x0) else ty[l:]
-		x[i] = scalar(param) #param[0] if isvector(param) else param
-	x,y = x.reshape([1,-1]),y.reshape([1,-1])
-	p = { 'dotsize' : 0.1 }
-	p.update(props)
-	scatplot(x,y,p)
-
 
