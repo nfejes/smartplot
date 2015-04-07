@@ -1,0 +1,2 @@
+# smartplot
+Wrapper for matplotlib
